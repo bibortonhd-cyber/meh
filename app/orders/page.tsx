@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/providers/auth-provider'
-import { mockMedicines, Medicine } from '@/lib/mock-data'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import { PageLoadingSpinner } from '@/components/loading-spinner'
 import { Navbar } from '@/components/navbar'
 import { BreadcrumbNav } from '@/components/breadcrumb-nav'
@@ -13,10 +13,15 @@ import { ShoppingBag, Package, Clock, CheckCircle, XCircle, Truck } from 'lucide
 
 interface OrderItem {
   id: string
-  medicine_id: string
+  order_id: string
   quantity: number
   price: number
-  medicine?: Medicine
+  medicines?: {
+    id: string
+    name: string
+    description?: string
+    category?: string
+  }
 }
 
 interface Order {
@@ -28,7 +33,11 @@ interface Order {
   shipping_address: string
   created_at: string
   updated_at: string
-  order_items: OrderItem[]
+  order_items?: OrderItem[]
+  users?: {
+    full_name?: string
+    email: string
+  }
 }
 
 export default function OrdersPage() {
@@ -43,85 +52,48 @@ export default function OrdersPage() {
   }, [user])
 
   const loadOrders = () => {
-    // Simulate loading orders
-    setTimeout(() => {
-      const mockOrders: Order[] = [
-        {
-          id: 'order1',
-          user_id: user!.id,
-          total_amount: 37.50,
-          status: 'completed',
-          payment_method: 'Cash on Delivery',
-          shipping_address: '123 Main St, City, State 12345',
-          created_at: '2024-01-20T10:30:00Z',
-          updated_at: '2024-01-22T14:20:00Z',
-          order_items: [
-            {
-              id: 'item1',
-              medicine_id: '1',
-              quantity: 2,
-              price: 12.50,
-              medicine: mockMedicines.find(m => m.id === '1')
-            },
-            {
-              id: 'item2',
-              medicine_id: '3',
-              quantity: 1,
-              price: 8.75,
-              medicine: mockMedicines.find(m => m.id === '3')
-            }
-          ]
-        },
-        {
-          id: 'order2',
-          user_id: user!.id,
-          total_amount: 43.90,
-          status: 'processing',
-          payment_method: 'Cash on Delivery',
-          shipping_address: '123 Main St, City, State 12345',
-          created_at: '2024-01-23T09:15:00Z',
-          updated_at: '2024-01-23T09:15:00Z',
-          order_items: [
-            {
-              id: 'item3',
-              medicine_id: '2',
-              quantity: 1,
-              price: 25.00,
-              medicine: mockMedicines.find(m => m.id === '2')
-            },
-            {
-              id: 'item4',
-              medicine_id: '5',
-              quantity: 1,
-              price: 18.90,
-              medicine: mockMedicines.find(m => m.id === '5')
-            }
-          ]
-        },
-        {
-          id: 'order3',
-          user_id: user!.id,
-          total_amount: 15.30,
-          status: 'pending',
-          payment_method: 'Cash on Delivery',
-          shipping_address: '123 Main St, City, State 12345',
-          created_at: '2024-01-24T16:45:00Z',
-          updated_at: '2024-01-24T16:45:00Z',
-          order_items: [
-            {
-              id: 'item5',
-              medicine_id: '4',
-              quantity: 1,
-              price: 15.30,
-              medicine: mockMedicines.find(m => m.id === '4')
-            }
-          ]
-        }
-      ]
+    const loadOrdersAsync = async () => {
+      if (!isSupabaseConfigured()) {
+        console.warn('Supabase not configured. Please set up your environment variables.')
+        setOrders([])
+        setLoading(false)
+        return
+      }
 
-      setOrders(mockOrders)
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
+              *,
+              medicines (
+                id,
+                name,
+                description,
+                category
+              )
+            )
+          `)
+          .eq('user_id', user!.id)
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Error loading orders:', error)
+          toast.error('Failed to load orders')
+          setOrders([])
+        } else {
+          setOrders(data || [])
+        }
+      } catch (error) {
+        console.error('Error loading orders:', error)
+        toast.error('Failed to load orders')
+        setOrders([])
+      }
       setLoading(false)
-    }, 500)
+    }
+
+    loadOrdersAsync()
   }
 
   const getStatusIcon = (status: Order['status']) => {
@@ -218,14 +190,14 @@ export default function OrdersPage() {
                   <div>
                     <h4 className="font-medium mb-3">Items Ordered</h4>
                     <div className="space-y-2">
-                      {order.order_items.map((item) => (
+                      {order.order_items?.map((item) => (
                         <div key={item.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                           <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
                               <Package className="h-6 w-6 text-muted-foreground" />
                             </div>
                             <div>
-                              <h5 className="font-medium">{item.medicine?.name}</h5>
+                              <h5 className="font-medium">{item.medicines?.name || 'Unknown Medicine'}</h5>
                               <p className="text-sm text-muted-foreground">
                                 Quantity: {item.quantity} × ${item.price.toFixed(2)}
                               </p>
@@ -235,7 +207,7 @@ export default function OrdersPage() {
                             <p className="font-medium">${(item.quantity * item.price).toFixed(2)}</p>
                           </div>
                         </div>
-                      ))}
+                      )) || []}
                     </div>
                   </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -36,12 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // If Supabase is not configured, set loading to false and return
-    if (!isSupabaseConfigured() || !supabase) {
-      setLoading(false)
-      return
-    }
-
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -68,14 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const handleUserSession = async (authUser: User) => {
-    if (!supabase) {
-      setLoading(false)
-      return
-    }
-
     try {
-      // Sync user to public.users table
-      let roles: string[] = ['patient'] // Default fallback role
+      let roles: string[] = []
 
       try {
         // Try to sync user to public.users table
@@ -88,8 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updated_at: new Date().toISOString()
           })
 
-        if (upsertError && !upsertError.message.includes('does not exist')) {
+        if (upsertError) {
           console.error('Error syncing user:', upsertError)
+          // Continue anyway - user might still be able to use the app
         }
 
         // Try to get user roles
@@ -99,32 +88,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('user_id', authUser.id)
 
         if (rolesError) {
-          if (rolesError.message.includes('does not exist') || rolesError.code === 'PGRST205') {
-            console.warn('Database tables not found. Using fallback authentication. Please apply the database schema from supabase/migrations/')
-          } else {
-            console.error('Error fetching roles:', rolesError)
-          }
+          console.error('Error fetching roles:', rolesError)
+          // Assign default patient role if role fetch fails
+          roles = ['patient']
         } else {
           const fetchedRoles = rolesData?.map(r => r.role) || []
           
           // If no roles found, try to assign default patient role
           if (fetchedRoles.length === 0) {
-            const { error: roleError } = await supabase
-              .from('user_roles')
-              .insert({
-                user_id: authUser.id,
-                role: 'patient'
-              })
+            try {
+              const { error: roleError } = await supabase
+                .from('user_roles')
+                .insert({
+                  user_id: authUser.id,
+                  role: 'patient'
+                })
 
-            if (!roleError) {
-              roles = ['patient']
+              if (!roleError) {
+                roles = ['patient']
+              } else {
+                console.error('Error assigning default role:', roleError)
+                roles = ['patient'] // Fallback
+              }
+            } catch (error) {
+              console.error('Error in role assignment:', error)
+              roles = ['patient'] // Fallback
             }
           } else {
             roles = fetchedRoles
           }
         }
       } catch (dbError) {
-        console.warn('Database not configured. Using fallback authentication with patient role.')
+        console.error('Database error:', dbError)
+        roles = ['patient'] // Fallback to patient role
       }
 
       const userWithRoles = {
@@ -161,10 +157,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    if (!supabase) {
-      throw new Error('Supabase is not configured. Please set up your environment variables.')
-    }
-
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -176,10 +168,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    if (!supabase) {
-      throw new Error('Supabase is not configured. Please set up your environment variables.')
-    }
-
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -196,13 +184,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    if (!supabase) {
-      setUser(null)
-      setUserRoles([])
-      router.push('/')
-      return
-    }
-
     const { error } = await supabase.auth.signOut()
     if (error) {
       throw error

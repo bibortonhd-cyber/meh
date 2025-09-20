@@ -74,6 +74,11 @@ export default function DoctorsPage() {
       return
     }
 
+    if (!isSupabaseConfigured()) {
+      toast.error('Database not configured. Please set up Supabase.')
+      return
+    }
+
     try {
       // Create appointment for tomorrow at 10:00 AM (you can add date/time picker later)
       const tomorrow = new Date()

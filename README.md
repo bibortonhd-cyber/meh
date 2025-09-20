@@ -83,24 +83,43 @@
 3. **Set up environment variables**
    Create a `.env.local` file in the root directory:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
    ```
 
-4. **Set up Supabase database**
+4. **Set up Supabase database** 
    - Go to your Supabase dashboard
    - Navigate to SQL Editor
-   - Run the SQL script from `supabase/apply-schema.sql`
+   - Run the SQL script from `supabase/migrations/20250920133442_soft_sun.sql`
    - Disable email confirmation in Authentication settings
 
-5. **Run the development server**
+5. **Create Super Admin Account**
+   - Visit `http://localhost:3000/setup/admin` 
+   - Create the first super admin account
+   - This is required for admin functionality
+
+6. **Run the development server**
    ```bash
    npm run dev
    ```
 
-6. **Open your browser**
+7. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 🔧 Initial Setup
+
+### Database Setup
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Copy your project credentials to `.env.local`
+3. Run the migration script in SQL Editor
+4. Disable email confirmation in Auth settings
+
+### Admin Setup
+1. Visit `/setup/admin` to create the first super admin
+2. Use this account to manage users and assign roles
+3. Additional admins can be created from the admin dashboard
 
 ## 📁 Project Structure
 

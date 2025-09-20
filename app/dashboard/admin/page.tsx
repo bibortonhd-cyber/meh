@@ -1,6 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/providers/auth-provider'
+import { AdminService } from '@/lib/supabase/admin'
 import { PageLoadingSpinner } from '@/components/loading-spinner'
 import { Navbar } from '@/components/navbar'
 import { BreadcrumbNav } from '@/components/breadcrumb-nav'
@@ -22,6 +24,30 @@ import {
 
 export default function AdminDashboard() {
   const { user, userRoles, loading } = useAuth()
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalOrders: 0,
+    totalAppointments: 0,
+    totalEmergencyRequests: 0
+  })
+  const [statsLoading, setStatsLoading] = useState(true)
+
+  useEffect(() => {
+    if (user && (userRoles.includes('admin') || userRoles.includes('super_admin'))) {
+      loadStats()
+    }
+  }, [user, userRoles])
+
+  const loadStats = async () => {
+    try {
+      const systemStats = await AdminService.getSystemStats()
+      setStats(systemStats)
+    } catch (error) {
+      console.error('Error loading stats:', error)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
 
   if (loading) {
     return <PageLoadingSpinner />
@@ -67,7 +93,9 @@ export default function AdminDashboard() {
               <div className="flex items-center space-x-2">
                 <Users className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {statsLoading ? '...' : stats.totalUsers}
+                  </p>
                   <p className="text-sm text-muted-foreground">Total Users</p>
                 </div>
               </div>
@@ -79,7 +107,9 @@ export default function AdminDashboard() {
               <div className="flex items-center space-x-2">
                 <ShoppingBag className="h-5 w-5 text-green-600" />
                 <div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {statsLoading ? '...' : stats.totalOrders}
+                  </p>
                   <p className="text-sm text-muted-foreground">Total Orders</p>
                 </div>
               </div>
@@ -91,7 +121,9 @@ export default function AdminDashboard() {
               <div className="flex items-center space-x-2">
                 <Calendar className="h-5 w-5 text-purple-600" />
                 <div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {statsLoading ? '...' : stats.totalAppointments}
+                  </p>
                   <p className="text-sm text-muted-foreground">Appointments</p>
                 </div>
               </div>
@@ -103,7 +135,9 @@ export default function AdminDashboard() {
               <div className="flex items-center space-x-2">
                 <Ambulance className="h-5 w-5 text-red-600" />
                 <div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">
+                    {statsLoading ? '...' : stats.totalEmergencyRequests}
+                  </p>
                   <p className="text-sm text-muted-foreground">Emergency Requests</p>
                 </div>
               </div>

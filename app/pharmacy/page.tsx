@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/providers/auth-provider'
-import { supabase } from '@/lib/supabase/client'
-import { mockMedicines } from '@/lib/mock-data'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import { PageLoadingSpinner } from '@/components/loading-spinner'
 import { Navbar } from '@/components/navbar'
 import { BreadcrumbNav } from '@/components/breadcrumb-nav'
@@ -43,25 +42,27 @@ export default function PharmacyPage() {
 
   const loadMedicines = async () => {
     try {
-      const { data, error } = await supabase
-        .from('medicines')
-        .select('*')
-        .order('name')
+      if (!isSupabaseConfigured()) {
+        console.warn('Supabase not configured. Please set up your environment variables.')
+        setMedicines([])
+      } else {
+        const { data, error } = await supabase
+          .from('medicines')
+          .select('*')
+          .order('name')
 
-      if (error) {
-        if (error.message.includes('does not exist') || error.code === 'PGRST205') {
-          console.warn('Database tables not found. Using mock data. Please apply the database schema from supabase/migrations/')
-          setMedicines(mockMedicines)
-        } else {
+        if (error) {
           console.error('Error loading medicines:', error)
           toast.error('Failed to load medicines')
+          setMedicines([])
+        } else {
+          setMedicines(data || [])
         }
-      } else {
-        setMedicines(data || [])
       }
     } catch (error) {
-      console.warn('Database not configured. Using mock data.')
-      setMedicines(mockMedicines)
+      console.error('Error loading medicines:', error)
+      toast.error('Failed to load medicines')
+      setMedicines([])
     } finally {
       setLoading(false)
     }
@@ -113,6 +114,11 @@ export default function PharmacyPage() {
   const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Your cart is empty')
+      return
+    }
+
+    if (!isSupabaseConfigured()) {
+      toast.error('Database not configured. Please set up Supabase.')
       return
     }
 
