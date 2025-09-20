@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/providers/auth-provider'
+import { isSupabaseConfigured } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Image from 'next/image'
@@ -14,11 +15,13 @@ import {
 import { 
   User, 
   LogOut, 
-  Settings 
+  Settings,
+  AlertTriangle
 } from 'lucide-react'
 
 export function Navbar() {
   const { user, userRoles, signOut, loading } = useAuth()
+  const supabaseConfigured = isSupabaseConfigured()
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -35,6 +38,13 @@ export function Navbar() {
         </Link>
 
         <div className="flex flex-1 items-center justify-end space-x-4">
+          {!supabaseConfigured && (
+            <div className="flex items-center space-x-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+              <AlertTriangle className="h-4 w-4" />
+              <span>Database not configured</span>
+            </div>
+          )}
+          
           {loading ? (
             <div className="h-8 w-20 bg-muted animate-pulse rounded" />
           ) : user ? (

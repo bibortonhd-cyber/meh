@@ -112,9 +112,8 @@ export default function LoginPage() {
               <div className="mt-6 p-4 bg-muted rounded-lg">
                 <p className="text-sm font-medium mb-2">Test Accounts:</p>
                 <div className="text-xs space-y-1 text-muted-foreground">
-                  <div>Patient: patient1@test.com / Pass1234</div>
-                  <div>Doctor: doctor1@test.com / Pass1234</div>
-                  <div>Admin: admin@test.com / Admin1234</div>
+                  <div>Create admin account at: <a href="/setup/admin" className="text-primary hover:underline">/setup/admin</a></div>
+                  <div>Then login here with admin credentials</div>
                 </div>
               </div>
             </CardContent>

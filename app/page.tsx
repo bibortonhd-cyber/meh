@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/providers/auth-provider'
+import { isSupabaseConfigured } from '@/lib/supabase/client'
 import { PageLoadingSpinner } from '@/components/loading-spinner'
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
@@ -16,11 +17,14 @@ import {
   Shield,
   Clock,
   Users,
-  Heart
+  Heart,
+  Database,
+  Settings
 } from 'lucide-react'
 
 export default function HomePage() {
   const { user, loading } = useAuth()
+  const supabaseConfigured = isSupabaseConfigured()
 
   if (loading) {
     return <PageLoadingSpinner />
@@ -33,6 +37,31 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50">
       <Navbar />
+      
+      {/* Database Configuration Warning */}
+      {!supabaseConfigured && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="container py-4">
+            <div className="flex items-center space-x-3">
+              <Database className="h-5 w-5 text-yellow-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-800">
+                  Database not configured - Running in demo mode
+                </p>
+                <p className="text-xs text-yellow-700">
+                  Set up Supabase to enable full functionality
+                </p>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <a href="/setup/admin">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Setup Database
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Hero Section */}
       <section className="container py-24 text-center">

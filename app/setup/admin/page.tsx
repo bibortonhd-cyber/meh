@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { AdminService } from '@/lib/supabase/admin'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Navbar } from '@/components/navbar'
-import { Shield, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Shield, CheckCircle, AlertTriangle, Database } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
@@ -22,6 +22,9 @@ export default function AdminSetupPage() {
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
+  // Check if Supabase is configured
+  const supabaseConfigured = isSupabaseConfigured()
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
       ...prev,
@@ -32,6 +35,11 @@ export default function AdminSetupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!supabaseConfigured) {
+      toast.error('Please configure Supabase environment variables first')
+      return
+    }
+
     if (!formData.email || !formData.password || !formData.fullName) {
       toast.error('Please fill in all fields')
       return
@@ -49,11 +57,40 @@ export default function AdminSetupPage() {
 
     setLoading(true)
     try {
-      await AdminService.createSuperAdmin(
-        formData.email,
-        formData.password,
-        formData.fullName
-      )
+      // First check if any super admin exists
+      const { data: existingAdmins } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('role', 'super_admin')
+        .limit(1)
+
+      if (existingAdmins && existingAdmins.length > 0) {
+        throw new Error('Super admin already exists')
+      }
+
+      // Create the user account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName
+          }
+        }
+      })
+
+      if (authError) throw authError
+      if (!authData.user) throw new Error('Failed to create user')
+
+      // Add super admin role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'super_admin'
+        })
+
+      if (roleError) throw roleError
       
       setSuccess(true)
       toast.success('Super admin account created successfully!')
@@ -73,6 +110,53 @@ export default function AdminSetupPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!supabaseConfigured) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <Navbar />
+        
+        <div className="container py-16">
+          <div className="max-w-md mx-auto">
+            <Card className="border-red-200">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Database className="h-8 w-8 text-red-600" />
+                </div>
+                <CardTitle className="text-2xl text-red-800">Database Not Configured</CardTitle>
+                <CardDescription>
+                  Please set up your Supabase database first
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 text-sm">
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <h4 className="font-medium text-yellow-800 mb-2">Setup Steps:</h4>
+                    <ol className="list-decimal list-inside space-y-1 text-yellow-700">
+                      <li>Create a Supabase project at <a href="https://supabase.com" target="_blank" className="underline">supabase.com</a></li>
+                      <li>Copy your project URL and anon key</li>
+                      <li>Update the .env.local file with your credentials</li>
+                      <li>Run the database migration in Supabase SQL Editor</li>
+                      <li>Restart the development server</li>
+                    </ol>
+                  </div>
+                  
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-medium text-blue-800 mb-2">Environment Variables Needed:</h4>
+                    <pre className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
+{`NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-key`}
+                    </pre>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (success) {
