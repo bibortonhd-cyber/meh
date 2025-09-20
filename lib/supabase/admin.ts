@@ -5,17 +5,6 @@ export class AdminService {
   // Create initial super admin user
   static async createSuperAdmin(email: string, password: string, fullName: string) {
     try {
-      // First check if any super admin exists
-      const { data: existingAdmins } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('role', 'super_admin')
-        .limit(1)
-
-      if (existingAdmins && existingAdmins.length > 0) {
-        throw new Error('Super admin already exists')
-      }
-
       // Create the user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -30,13 +19,12 @@ export class AdminService {
       if (authError) throw authError
       if (!authData.user) throw new Error('Failed to create user')
 
-      // Add super admin role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'super_admin'
-        })
+      // Use the safe function to create super admin
+      const { error: roleError } = await supabase.rpc('create_super_admin', {
+        admin_user_id: authData.user.id,
+        admin_email: email,
+        admin_name: fullName
+      })
 
       if (roleError) throw roleError
 

@@ -51,6 +51,14 @@ NODE_ENV=development
 5. Click **Run** to execute the migration
 6. You should see "Success. No rows returned" message
 
+### Step 4.1: Fix RLS Policies (Important!)
+
+1. Still in **SQL Editor**, create another new query
+2. Copy the entire content from `supabase/migrations/20250120000001_fix_rls_recursion.sql`
+3. Paste it in the SQL editor
+4. Click **Run** to execute the fix
+5. This fixes the infinite recursion issue in user roles
+
 ### Step 5: Configure Authentication
 
 1. In Supabase dashboard, go to **Authentication** → **Settings**

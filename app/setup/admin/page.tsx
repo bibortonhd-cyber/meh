@@ -57,40 +57,12 @@ export default function AdminSetupPage() {
 
     setLoading(true)
     try {
-      // First check if any super admin exists
-      const { data: existingAdmins } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('role', 'super_admin')
-        .limit(1)
-
-      if (existingAdmins && existingAdmins.length > 0) {
-        throw new Error('Super admin already exists')
-      }
-
-      // Create the user account
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName
-          }
-        }
-      })
-
-      if (authError) throw authError
-      if (!authData.user) throw new Error('Failed to create user')
-
-      // Add super admin role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'super_admin'
-        })
-
-      if (roleError) throw roleError
+      // Use the AdminService to create super admin safely
+      const result = await AdminService.createSuperAdmin(
+        formData.email,
+        formData.password,
+        formData.fullName
+      )
       
       setSuccess(true)
       toast.success('Super admin account created successfully!')
