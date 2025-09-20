@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -36,6 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
+    // If Supabase is not configured, set loading to false and return
+    if (!isSupabaseConfigured() || !supabase) {
+      setLoading(false)
+      return
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -62,6 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const handleUserSession = async (authUser: User) => {
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+
     try {
       // Sync user to public.users table
       let roles: string[] = ['patient'] // Default fallback role
@@ -150,6 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set up your environment variables.')
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -161,6 +176,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    if (!supabase) {
+      throw new Error('Supabase is not configured. Please set up your environment variables.')
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -177,6 +196,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    if (!supabase) {
+      setUser(null)
+      setUserRoles([])
+      router.push('/')
+      return
+    }
+
     const { error } = await supabase.auth.signOut()
     if (error) {
       throw error
